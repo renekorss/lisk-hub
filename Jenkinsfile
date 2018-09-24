@@ -97,6 +97,13 @@ node('lisk-hub') {
 
     stage ('Run E2E Tests') {
       try {
+
+	stash 'build'
+
+parallel (
+  "node 1" : {
+    node('lisk-hub1') {
+        unstash 'build'
         ansiColor('xterm') {
           withCredentials([string(credentialsId: 'lisk-hub-testnet-passphrase', variable: 'TESTNET_PASSPHRASE')]) {
             sh '''
@@ -104,19 +111,48 @@ node('lisk-hub') {
             # End to End test configuration
             export DISPLAY=:1$N
             Xvfb :1$N -ac -screen 0 1280x1024x24 &
-	        cp -r ~/lisk-docker/examples/development $WORKSPACE/$BRANCH_NAME
-	        cd $WORKSPACE/$BRANCH_NAME
-	        cp /home/lisk/blockchain_explorer.db.gz ./blockchain.db.gz
-	        LISK_VERSION=1.0.0-rc.1 make coldstart
-            # Run end-to-end tests
+            cp -r ~/lisk-docker/examples/development $WORKSPACE/$BRANCH_NAME
+            cd $WORKSPACE/$BRANCH_NAME
+            cp /home/lisk/blockchain_explorer.db.gz ./blockchain.db.gz
+            LISK_VERSION=1.0.0-rc.1 make coldstart
             export CYPRESS_baseUrl=http://127.0.0.1:300$N/#/
-	        export CYPRESS_coreUrl=http://127.0.0.1:$( docker-compose port lisk 4000 |cut -d ":" -f 2 )
-	        cd -
-	        npm run serve --  $WORKSPACE/app/build -p 300$N -a 127.0.0.1 &>server.log &
+            export CYPRESS_coreUrl=http://127.0.0.1:$( docker-compose port lisk 4000 |cut -d ":" -f 2 )
+            cd -
+            # Run end-to-end tests
+            npm run serve --  $WORKSPACE/app/build -p 300$N -a 127.0.0.1 &>server.log &
             npm run cypress:run -- --record --parallel
             '''
           }
         }
+    }
+  },
+  "node 2" : {
+    node('lisk-hub2') {
+        unstash 'build'
+        ansiColor('xterm') {
+          withCredentials([string(credentialsId: 'lisk-hub-testnet-passphrase', variable: 'TESTNET_PASSPHRASE')]) {
+            sh '''
+            export N=${EXECUTOR_NUMBER:-0}; N=$((N+1))
+            # End to End test configuration
+            export DISPLAY=:1$N
+            Xvfb :1$N -ac -screen 0 1280x1024x24 &
+            cp -r ~/lisk-docker/examples/development $WORKSPACE/$BRANCH_NAME
+            cd $WORKSPACE/$BRANCH_NAME
+            cp /home/lisk/blockchain_explorer.db.gz ./blockchain.db.gz
+            LISK_VERSION=1.0.0-rc.1 make coldstart
+            export CYPRESS_baseUrl=http://127.0.0.1:300$N/#/
+            export CYPRESS_coreUrl=http://127.0.0.1:$( docker-compose port lisk 4000 |cut -d ":" -f 2 )
+            cd -
+            # Run end-to-end tests
+            npm run serve --  $WORKSPACE/app/build -p 300$N -a 127.0.0.1 &>server.log &
+            npm run cypress:run -- --record --parallel
+            '''
+          }
+        }
+    }
+  }
+)
+
       } catch (err) {
         echo "Error: ${err}"
         fail('Stopping build: end-to-end test suite failed')
@@ -125,20 +161,41 @@ node('lisk-hub') {
   } catch(err) {
     echo "Error: ${err}"
   } finally {
-    ansiColor('xterm') {
-      sh '''
-      cd $WORKSPACE/$BRANCH_NAME
-      make mrproper
-      '''
+
+parallel (
+  "node 1" : {
+    node('lisk-hub1') {
+      ansiColor('xterm') {
+        sh '''
+        cd $WORKSPACE/$BRANCH_NAME
+        make mrproper
+
+        N=${EXECUTOR_NUMBER:-0}; N=$((N+1))
+        pgrep --list-full -f "Xvfb :1$N" || true
+        pkill --echo -f "Xvfb :1$N" -9 || echo "pkill returned code $?"
+        '''
+      }
     }
-    sh '''
-    N=${EXECUTOR_NUMBER:-0}; N=$((N+1))
-    pgrep --list-full -f "Xvfb :1$N" || true
-    pkill --echo -f "Xvfb :1$N" -9 || echo "pkill returned code $?"
-    '''
+  },
+  "node 2" : {
+    node('lisk-hub2') {
+      ansiColor('xterm') {
+        sh '''
+        cd $WORKSPACE/$BRANCH_NAME
+        make mrproper
+
+        N=${EXECUTOR_NUMBER:-0}; N=$((N+1))
+        pgrep --list-full -f "Xvfb :1$N" || true
+        pkill --echo -f "Xvfb :1$N" -9 || echo "pkill returned code $?"
+        '''
+      }
+    }
+  }
+)
 
     cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'coverage/*/cobertura-coverage.xml', conditionalCoverageTargets: '70, 0, 0', failUnhealthy: false, failUnstable: false, fileCoverageTargets: '100, 0, 0', lineCoverageTargets: '80, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '80, 0, 0', onlyStable: false, sourceEncoding: 'ASCII'
     junit 'reports/junit_report.xml'
+
     dir('node_modules') {
       deleteDir()
     }
