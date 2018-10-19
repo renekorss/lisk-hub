@@ -26,7 +26,6 @@ class TransactionsDetailView extends React.Component {
         id: transactionId,
       });
     }
-    console.log('TransactionsDetailView', props);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -77,12 +76,15 @@ class TransactionsDetailView extends React.Component {
     Object.keys(this.props.transaction).length !== 0);
   }
 
-  getFirstRow() {
+  getTransaction() {
     const isPendingTransaction = this.isPendingTransaction();
     const isTransactionEmpty = this.isTransactionEmpty();
-
-    const transaction = isTransactionEmpty || (isTransactionEmpty && isPendingTransaction) ?
+    return isTransactionEmpty || (isTransactionEmpty && isPendingTransaction) ?
       this.props.transaction : (isPendingTransaction || {});
+  }
+
+  getFirstRow() {
+    const transaction = this.getTransaction();
 
     const isSendTransaction = this.props.transaction.type === transactions.send
       || (this.props.pendingTransactions && this.props.pendingTransactions.length > 0);
@@ -128,10 +130,7 @@ class TransactionsDetailView extends React.Component {
   }
 
   render() {
-    const isPendingTransaction = this.isPendingTransaction();
-    const isTransactionEmpty = this.isTransactionEmpty();
-    const transaction = isTransactionEmpty || (isTransactionEmpty && isPendingTransaction) ?
-      this.props.transaction : (isPendingTransaction || {});
+    const transaction = this.getTransaction();
 
     return (
       <div className={`${styles.details}`}>
