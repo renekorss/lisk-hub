@@ -83,11 +83,14 @@ class TransactionsDetailView extends React.Component {
       this.props.transaction : (isPendingTransaction || {});
   }
 
+  isSendTransaction() {
+    return this.props.transaction.type === transactions.send
+      || (this.props.pendingTransactions && this.props.pendingTransactions.length > 0);
+  }
+
   getFirstRow() {
     const transaction = this.getTransaction();
-
-    const isSendTransaction = this.props.transaction.type === transactions.send
-      || (this.props.pendingTransactions && this.props.pendingTransactions.length > 0);
+    const isSendTransaction = this.isSendTransaction();
 
     return (
       <TransactionDetailViewRow>
