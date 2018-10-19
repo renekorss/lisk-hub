@@ -1,10 +1,7 @@
 import React from 'react';
-// import { connect } from 'react-redux';
-// import { translate } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import grid from 'flexboxgrid/dist/flexboxgrid.css';
 // import { loadTransaction } from '../../../actions/transactions';
-import { TimeFromTimestamp, DateFromTimestamp } from './../../timestamp/index';
 import CopyToClipboard from '../../copyToClipboard';
 import AccountVisual from '../../accountVisual';
 import styles from './transactionDetailView.css';
@@ -16,6 +13,7 @@ import routes from './../../../constants/routes';
 import transactions from './../../../constants/transactionTypes';
 import TransactionDetailViewField from './transactionDetailViewField';
 import TransactionDetailViewRow from './transactionDetailViewRow';
+import DateField from './transactionDetailDateField';
 
 class TransactionsDetailView extends React.Component {
   constructor(props) {
@@ -68,27 +66,20 @@ class TransactionsDetailView extends React.Component {
       )) : '';
   }
 
-  getDateField() {
-    return (
-      <TransactionDetailViewField
-        label={this.props.t('Date')}
-        value={ this.props.transaction.timestamp ?
-          <span>
-            <DateFromTimestamp
-              time={this.props.transaction.timestamp} /> - <TimeFromTimestamp
-              time={this.props.transaction.timestamp}/>
-          </span> :
-          <span>{this.props.t('Pending')}</span>
-        } />
-    );
+  isPendingTransaction() {
+    const transactionId = this.getTransactionIdFromURL();
+    return this.props.pendingTransactions &&
+    this.props.pendingTransactions.find(tx => tx.id === transactionId);
+  }
+
+  isTransactionEmpty() {
+    return (typeof this.props.transaction === 'object' &&
+    Object.keys(this.props.transaction).length !== 0);
   }
 
   getFirstRow() {
-    const transactionId = this.getTransactionIdFromURL();
-    const isPendingTransaction = this.props.pendingTransactions &&
-      this.props.pendingTransactions.find(tx => tx.id === transactionId);
-    const isTransactionEmpty = (typeof this.props.transaction === 'object' &&
-    Object.keys(this.props.transaction).length !== 0);
+    const isPendingTransaction = this.isPendingTransaction();
+    const isTransactionEmpty = this.isTransactionEmpty();
 
     const transaction = isTransactionEmpty || (isTransactionEmpty && isPendingTransaction) ?
       this.props.transaction : (isPendingTransaction || {});
@@ -113,7 +104,7 @@ class TransactionsDetailView extends React.Component {
             </figure> : null}
         </TransactionDetailViewField>
 
-        {!isSendTransaction ? this.getDateField() :
+        {!isSendTransaction ? <DateField {...this.props} /> :
           <TransactionDetailViewField
             shouldShow={transaction.recipientId}
             label={this.props.t('Recipient')}
@@ -137,10 +128,8 @@ class TransactionsDetailView extends React.Component {
   }
 
   render() {
-    const transactionId = this.getTransactionIdFromURL();
-    const isPendingTransaction = this.props.pendingTransactions &&
-      this.props.pendingTransactions.find(tx => tx.id === transactionId);
-    const isTransactionEmpty = (typeof this.props.transaction === 'object' && Object.keys(this.props.transaction).length !== 0);
+    const isPendingTransaction = this.isPendingTransaction();
+    const isTransactionEmpty = this.isTransactionEmpty();
     const transaction = isTransactionEmpty || (isTransactionEmpty && isPendingTransaction) ?
       this.props.transaction : (isPendingTransaction || {});
 
@@ -175,7 +164,7 @@ class TransactionsDetailView extends React.Component {
           {this.getFirstRow()}
 
           <TransactionDetailViewRow shouldShow={transaction.type === 0}>
-            {this.getDateField()}
+            <DateField {...this.props} />
             <TransactionDetailViewField
               label={this.props.t('Amount (LSK)')}
               value={
@@ -229,15 +218,5 @@ class TransactionsDetailView extends React.Component {
     );
   }
 }
-
-// const mapStateToProps = state => ({
-//   peers: state.peers,
-// });
-
-// const mapDispatchToProps = dispatch => ({
-//   loadTransaction: data => dispatch(loadTransaction(data)),
-// });
-
-// export default connect(mapStateToProps, mapDispatchToProps)(translate()(TransactionsDetailView));
 
 export default TransactionsDetailView;
